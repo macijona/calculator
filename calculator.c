@@ -2,12 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <math.h>
+
 #define IS_NEGATIVE(c) (c == '-')
 #define IS_NEG_TOKEN(c) (c == neg_token)
 
-char operators [] = "/+*-";
-char non_front_operators [] = "/+*";
+char operators [] = "/+*-^";
 char neg_token = '~';
+char decimal_point = '.';
 float ans = 0;
 
 /**
@@ -71,11 +73,18 @@ bool format_is_good(char* str, bool allow_ans){
     bool cur_i_ans = false;
     bool allow_neg = true;
     bool contains_ans = false;
+    bool already_have_decimal = false;
     for(int i = 0; i < strlen(str); i++){
         // digit: if the previous character was part of 'ans', error out
-        if(isdigit(str[i])){
+        bool is_decimal = str[i] == decimal_point;
+        if(isdigit(str[i])|| is_decimal){
             if(cur_i_ans){
                 return false;
+            }
+            if(is_decimal){
+                if(already_have_decimal||!cur_i_digit)
+                    return false;
+                already_have_decimal = true;
             }
             cur_i_digit = true;
             cur_i_operator = false;
@@ -109,6 +118,7 @@ bool format_is_good(char* str, bool allow_ans){
             cur_i_digit = false;
             cur_i_operator = true;
             cur_i_ans = false;
+            already_have_decimal = false;
         }
         // ans: must only happen betwen ops, not after a digit or another ans
         else if(is_part_of_ans(str, i)){
@@ -123,6 +133,7 @@ bool format_is_good(char* str, bool allow_ans){
             cur_i_digit = false;
             cur_i_operator = false;
             cur_i_ans = true;
+            already_have_decimal = false;
         }
         else{
             return false;
@@ -133,7 +144,7 @@ bool format_is_good(char* str, bool allow_ans){
     if(strchr(operators, str[0]) != NULL || strchr(operators, str[strlen(str)-1]) != NULL){
         return false;
     }
-    if(!allow_ans&&contains_ans){
+    if(!allow_ans && contains_ans){
         return false;
     }
     
@@ -164,7 +175,7 @@ float value(char* str){
 }
 
 /**
- * @brief computes the operation given: operand1 operation operand2
+ * @brief Computes the operation given: operand1 operation operand2
  * 
  * @param operand1 
  * @param operand2 
@@ -181,6 +192,8 @@ float compute_ans(float operand1, float operand2, char operation){
             return operand1 + operand2;
         case '-':
             return operand1 - operand2;
+        case '^':
+            return pow(operand1, operand2);
     }
     return 0;
 }
@@ -296,12 +309,37 @@ char * clean(char * str){
 }
 
 /**
+ * @brief calculates the result of the expression and stores it in ans
+ * 
+ * @param str 
+ */
+void calculate_expression(char* str){
+    static bool history_exists = false;
+
+    // check if format of input is correct
+    if(!format_is_good(str, history_exists))
+        printf("Invalid input!\n");
+    else{
+        // printf("    str: %s\n", str);
+        compute_ops(str,"^");
+        // printf("    str after ^ operations: %s\n", str);
+        compute_ops(str,"*/");
+        // printf("    str after */ operations: %s\n", str);
+        compute_ops(str,"+-");
+        // printf("    str after +- operations: %s\n", str);
+        ans = atof(clean(str));
+        printf("ans: %f\n", ans);
+        // printf("'ans' stored..\n");
+        history_exists |= true;
+    }
+}
+
+/**
  * @brief Asks user for a math expression and computes the result of the expression
  */
 int main(){
     // Collect string from user
     char *str = malloc(1000);
-    bool history_exists = false;
     while(true){
         // grab input with fgets()
         introduce_calculator();
@@ -315,20 +353,6 @@ int main(){
             free(str);
             return 0;
         }
-        // check if format of input is correct
-        if(!format_is_good(str, history_exists))
-            printf("Invalid input!!\n");
-        else{
-            printf("    str: %s\n", str);
-            compute_ops(str,"*/");
-            printf("    str after */ operations: %s\n", str);
-            compute_ops(str,"+-");
-            printf("    str after +- operations: %s\n", str);
-            ans = atof(clean(str));
-            printf("ans: %f\n", ans);
-            printf("'ans' stored..\n");
-            history_exists |= true;
-        }
+        calculate_expression(str);
     }
 }
-
