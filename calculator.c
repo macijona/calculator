@@ -7,10 +7,12 @@
 #define IS_NEGATIVE(c) (c == '-')
 #define IS_NEG_TOKEN(c) (c == neg_token)
 
-char operators [] = "/+*-^";
+char operators [] = "/+*-^%";
 char neg_token = '~';
 char decimal_point = '.';
 float ans = 0;
+char l_paren = '(';
+char r_paren = ')';
 
 /**
  * @brief introduction to the calculator app
@@ -68,17 +70,17 @@ bool format_is_good(char* str, bool allow_ans){
     free(buffer);
     
     // ensure that only characters in str are numbers, /, *, +, -, and "ans"
-    bool cur_i_digit = false;
-    bool cur_i_operator = false;
-    bool cur_i_ans = false;
+    bool cur_i_digit = false, cur_i_operator = false, cur_i_ans = false;
     bool allow_neg = true;
     bool contains_ans = false;
     bool already_have_decimal = false;
+    bool cur_i_left_paren = false, cur_i_right_paren = false;
+    int paren_check = 0;
     for(int i = 0; i < strlen(str); i++){
         // digit: if the previous character was part of 'ans', error out
         bool is_decimal = str[i] == decimal_point;
         if(isdigit(str[i])|| is_decimal){
-            if(cur_i_ans){
+            if(cur_i_ans||cur_i_right_paren){
                 return false;
             }
             if(is_decimal){
@@ -89,6 +91,8 @@ bool format_is_good(char* str, bool allow_ans){
             cur_i_digit = true;
             cur_i_operator = false;
             cur_i_ans = false;
+            cur_i_left_paren = false;
+            cur_i_right_paren = false;
         }
         // op: must only happen betwen digits and 'ans', not after another op
         else if(strchr(operators, str[i]) != NULL){
@@ -103,6 +107,9 @@ bool format_is_good(char* str, bool allow_ans){
                 else{
                     return false;
                 }
+            }
+            else if(cur_i_left_paren){
+                return false;
             }
             else{
                 // if this is a negative sign in the beggining, only allow one negative sign
@@ -119,11 +126,13 @@ bool format_is_good(char* str, bool allow_ans){
             cur_i_operator = true;
             cur_i_ans = false;
             already_have_decimal = false;
+            cur_i_left_paren = false;
+            cur_i_right_paren = false;
         }
         // ans: must only happen betwen ops, not after a digit or another ans
         else if(is_part_of_ans(str, i)){
             contains_ans = true;
-            if(cur_i_digit){
+            if(cur_i_digit|| cur_i_right_paren){
                 return false;
             }
             // check if next 3 digits are part of ans, which means 'ansans' must have occured:
@@ -134,8 +143,27 @@ bool format_is_good(char* str, bool allow_ans){
             cur_i_operator = false;
             cur_i_ans = true;
             already_have_decimal = false;
+            cur_i_left_paren = false;
+            cur_i_right_paren = false;
+        }
+        else if(str[i] == l_paren){
+            if(!cur_i_operator && !cur_i_left_paren&& i != 0){
+                return false;
+            }
+            cur_i_left_paren = true;
+            paren_check++;
+        }
+        else if(str[i] == r_paren){
+            if(cur_i_operator){
+                return false;
+            }
+            cur_i_right_paren = true;
+            paren_check--;
         }
         else{
+            return false;
+        }
+        if(paren_check < 0){
             return false;
         }
     }
@@ -145,6 +173,9 @@ bool format_is_good(char* str, bool allow_ans){
         return false;
     }
     if(!allow_ans && contains_ans){
+        return false;
+    }
+    if(paren_check != 0){
         return false;
     }
     
@@ -192,6 +223,8 @@ float compute_ans(float operand1, float operand2, char operation){
             return operand1 + operand2;
         case '-':
             return operand1 - operand2;
+        case '%':
+            return fmod(operand1, operand2);
         case '^':
             return pow(operand1, operand2);
     }
@@ -308,6 +341,69 @@ char * clean(char * str){
     return str;
 }
 
+
+void all_ops(char * str){
+    compute_ops(str,"^");
+    // printf("    str after ^ operations: %s\n", str);
+    compute_ops(str,"*/%");
+    // printf("    str after */ operations: %s\n", str);
+    compute_ops(str,"+-");
+    // printf("    str after +- operations: %s\n", str);
+}
+
+void compute_parens(char * str){
+    int * LP = malloc(1000*sizeof(int));
+    int * RP= malloc(1000*sizeof(int));
+    int LP_count = 0, RP_count = 0;
+    int i = 0;
+    while(str[i] != '\0'){
+        if(str[i] == l_paren){
+            LP[LP_count] = i;
+            LP_count++;
+        }
+        else if(str[i] == r_paren){
+            RP[RP_count] = i;
+            RP_count++;
+
+            // compute the expression inside the parens
+            int lparen_i = LP[LP_count-1];
+            int rparen_i = RP[RP_count-1];
+            char * sub_ans = malloc(1000);
+            memset(sub_ans, 0, 1000);
+            strncpy(sub_ans, str + lparen_i + 1, rparen_i - lparen_i - 1);
+            printf("    str pre: %s\n", str);
+            printf("    sub_ans pre: %s\n", sub_ans);
+            all_ops(sub_ans);
+            printf("    sub_ans post: %s\n", sub_ans);
+            int str_len = strlen(str);
+            int sub_ans_len = strlen(sub_ans);
+            int paren_len = rparen_i - lparen_i + 1;
+
+            // shift_size is the size of the components after the parenthesis
+            int shift_size = str_len - lparen_i - paren_len;
+
+            // if paren_len >= sub_ans_len, then its shifted to the left, else its shifted to the right
+            memmove(str + lparen_i + sub_ans_len, str + lparen_i + paren_len, shift_size);
+            printf("    str mid memmove: %s\n", str);
+            memmove(str + lparen_i, sub_ans, sub_ans_len);
+
+            // update the length of str
+            str[str_len - paren_len + sub_ans_len] = '\0';
+            printf("    str_cnt: %d\n", str_len - paren_len + sub_ans_len + 1);
+            printf("    str post: %s\n", str);
+            LP_count--;
+            RP_count--;
+            i = lparen_i + sub_ans_len-1;
+            free(sub_ans);
+        }
+        i++;
+    }
+
+    free(LP);
+    free(RP);
+    printf("DONE\n");
+}
+
 /**
  * @brief calculates the result of the expression and stores it in ans
  * 
@@ -320,13 +416,11 @@ void calculate_expression(char* str){
     if(!format_is_good(str, history_exists))
         printf("Invalid input!\n");
     else{
-        // printf("    str: %s\n", str);
-        compute_ops(str,"^");
-        // printf("    str after ^ operations: %s\n", str);
-        compute_ops(str,"*/");
-        // printf("    str after */ operations: %s\n", str);
-        compute_ops(str,"+-");
-        // printf("    str after +- operations: %s\n", str);
+        printf("    str: %s\n", str);
+        compute_parens(str);
+        printf("    str after parens: %s\n", str);
+
+        all_ops(str);
         ans = atof(clean(str));
         printf("ans: %f\n", ans);
         // printf("'ans' stored..\n");
