@@ -371,10 +371,7 @@ void compute_parens(char * str){
             char * sub_ans = malloc(1000);
             memset(sub_ans, 0, 1000);
             strncpy(sub_ans, str + lparen_i + 1, rparen_i - lparen_i - 1);
-            printf("    str pre: %s\n", str);
-            printf("    sub_ans pre: %s\n", sub_ans);
             all_ops(sub_ans);
-            printf("    sub_ans post: %s\n", sub_ans);
             int str_len = strlen(str);
             int sub_ans_len = strlen(sub_ans);
             int paren_len = rparen_i - lparen_i + 1;
@@ -384,13 +381,10 @@ void compute_parens(char * str){
 
             // if paren_len >= sub_ans_len, then its shifted to the left, else its shifted to the right
             memmove(str + lparen_i + sub_ans_len, str + lparen_i + paren_len, shift_size);
-            printf("    str mid memmove: %s\n", str);
             memmove(str + lparen_i, sub_ans, sub_ans_len);
 
             // update the length of str
             str[str_len - paren_len + sub_ans_len] = '\0';
-            printf("    str_cnt: %d\n", str_len - paren_len + sub_ans_len + 1);
-            printf("    str post: %s\n", str);
             LP_count--;
             RP_count--;
             i = lparen_i + sub_ans_len-1;
@@ -401,7 +395,6 @@ void compute_parens(char * str){
 
     free(LP);
     free(RP);
-    printf("DONE\n");
 }
 
 /**
@@ -416,9 +409,7 @@ void calculate_expression(char* str){
     if(!format_is_good(str, history_exists))
         printf("Invalid input!\n");
     else{
-        printf("    str: %s\n", str);
         compute_parens(str);
-        printf("    str after parens: %s\n", str);
 
         all_ops(str);
         ans = atof(clean(str));
