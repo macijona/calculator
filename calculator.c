@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <math.h>
 
+#define DEBUG false
+#define DEBUG_PRINT(str, a) if(DEBUG) printf(str, a)
+
 #define IS_NEGATIVE(c) (c == '-')
 #define IS_NEG_TOKEN(c) (c == neg_token)
 
@@ -344,11 +347,11 @@ char * clean(char * str){
 
 void all_ops(char * str){
     compute_ops(str,"^");
-    // printf("    str after ^ operations: %s\n", str);
+    DEBUG_PRINT("    str after ^ operations: %s\n", str);
     compute_ops(str,"*/%");
-    // printf("    str after */ operations: %s\n", str);
+    DEBUG_PRINT("    str after */ operations: %s\n", str);
     compute_ops(str,"+-");
-    // printf("    str after +- operations: %s\n", str);
+    DEBUG_PRINT("    str after +- operations: %s\n", str);
 }
 
 void compute_parens(char * str){
@@ -409,12 +412,12 @@ void calculate_expression(char* str){
     if(!format_is_good(str, history_exists))
         printf("Invalid input!\n");
     else{
+        DEBUG_PRINT("    str before computing parens: %s\n", str);
         compute_parens(str);
-
+        DEBUG_PRINT("    str after parens: %s\n", str);
         all_ops(str);
         ans = atof(clean(str));
         printf("ans: %f\n", ans);
-        // printf("'ans' stored..\n");
         history_exists |= true;
     }
 }
